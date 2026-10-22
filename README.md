@@ -8,8 +8,8 @@ Built in Arc Studio: https://studio.arc.io/app/50208fc9-aa83-4607-9d24-1ea4551f7
 
 ## Live on Arc mainnet
 
-- App: APP_URL
-- The first circle, read-only, no wallet needed: APP_URL/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet
+- App: https://ajo-circle.vercel.app
+- The first circle, read-only, no wallet needed: https://ajo-circle.vercel.app/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet
 - AjoFactory: [0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9](https://explorer.arc.io/address/0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9)
 - First circle: [0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8](https://explorer.arc.io/address/0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8)
 
@@ -27,11 +27,16 @@ There is no admin and no upgrade path. Nobody, including the person who created 
 
 ## How it was built in Arc Studio
 
-The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over nine turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
+The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over ten turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
 
 - Studio wrote `AjoCircle` and `AjoFactory`, 46 Foundry tests, deployed every version to Arc testnet, and built the React app.
 - Studio's security reviews moved payouts to collect-your-pot (a frozen recipient could otherwise stall a push payout and the whole circle with it), let a deposit cover more than one miss, check that the full amount arrives on every incoming transfer, and check that the USDC address is a contract.
-- Reading each turn's changes found the rest, and Studio fixed them: covered payments were being counted as owed, anyone could fill someone's circle list (strangers' circles now sit in a separate Invitations section), and three app bugs (reads followed the wallet's chain, a share link took the wallet's network, and approve raced the payment that needed it).
+- Reading each turn's changes found the rest, and Studio fixed them:
+  - covered payments were being counted as owed
+  - anyone could fill someone's circle list, so strangers' circles now sit in a separate Invitations section
+  - reads followed the wallet's chain, and a share link took the wallet's network
+  - approve raced the payment that needed it
+  - a hand-written ABI listed one struct's fields out of order, so circle pages could not load; the app now takes its ABI straight from the compiled contracts
 - The contracts on mainnet are Studio's build, byte for byte. `node scripts/verify-bytecode.mjs` checks it.
 
 ## Check it yourself

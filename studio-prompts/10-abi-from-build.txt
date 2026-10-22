@@ -1,0 +1,9 @@
+Critical app bug: every circle page is stuck on the loading skeleton, on mainnet and testnet. No contract changes.
+
+Cause: src/abi.ts is hand-written and its circleState output struct is in a different order from the deployed contract. The contract returns (..., memberClaimable, roundRecipient, roundPot, roundPaidOut, roundHasPaid, roundCovered, memberShortfall), with memberShortfall LAST. src/abi.ts puts memberShortfall 14th, right after memberClaimable. ABI decoding is positional, so decoding throws, and CirclePage shows the skeleton forever because `if (isLoading || !state)` ignores the read error. Reproduce: open /?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet on the hosted build.
+
+1. Stop hand-writing ABIs. Build AJO_CIRCLE_ABI and AJO_FACTORY_ABI from the compiled artifacts in contracts/out/AjoCircle.sol/AjoCircle.json and contracts/out/AjoFactory.sol/AjoFactory.json (import the JSON, or generate src/abi.ts from it with a script), so the app can never drift from the contracts again. Make the CircleState TypeScript interface follow the contract's field order.
+2. In CirclePage, show the skeleton only while the first load is in flight. If the circleState read fails, show a short readable message with a Retry button (and log the error to the console), never an endless skeleton.
+3. Verify through the UI, not with a direct RPC call: load /?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet in the preview with no wallet connected and report what the page actually renders (circle name, the three members, each round's status, finished or not).
+
+Run typecheck, lint and the production build.

@@ -51,7 +51,7 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
   const { address: walletAddress, chainId: walletChainId, isConnected } = useAccount();
 
   // Fix 1: reads always use the circle's network, never the wallet's chain.
-  const { state, isLoading, refetch } = useCircleState(circleAddress, network.chainId);
+  const { state, isLoading, error: readError, refetch } = useCircleState(circleAddress, network.chainId);
   const [lastTx, setLastTx] = useState<{ hash: `0x${string}`; label: string } | undefined>();
   const [copied, setCopied] = useState(false);
 
@@ -148,7 +148,8 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
     });
   };
 
-  if (isLoading || !state) {
+  // Show skeleton only while the first load is in flight.
+  if (isLoading && !state) {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="flex items-center gap-3">
@@ -157,6 +158,41 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
         </div>
         <div className="h-32 rounded-3xl bg-slate-100" />
         <div className="h-20 rounded-2xl bg-slate-100" />
+      </div>
+    );
+  }
+
+  // Show a readable error instead of an endless skeleton when the read fails.
+  if (readError || !state) {
+    console.error('[CirclePage] circleState read failed:', readError);
+    return (
+      <div className="space-y-4">
+        <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium hover:opacity-60 transition-opacity" style={{ color: 'var(--muted)' }}>
+          <ArrowLeft className="size-4" /> Back
+        </button>
+        <div
+          className="rounded-3xl p-6 text-center space-y-3"
+          style={{ background: 'rgba(255,255,255,0.64)', border: '1px solid rgba(186,43,76,0.25)' }}
+        >
+          <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+            Could not load this circle.
+          </p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Check that the address is correct and you are on the right network ({network.name}).
+          </p>
+          {readError && (
+            <p className="text-xs font-mono break-all" style={{ color: 'var(--subtle)' }}>
+              {(readError as { shortMessage?: string }).shortMessage ?? readError.message}
+            </p>
+          )}
+          <button
+            onClick={() => { void refetch(); }}
+            className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-70"
+            style={{ background: 'var(--accent)', color: 'white' }}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

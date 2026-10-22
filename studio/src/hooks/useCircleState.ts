@@ -1,26 +1,35 @@
 import { useReadContract } from 'wagmi';
 import { AJO_CIRCLE_ABI, AJO_FACTORY_ABI } from '../abi';
 
+/**
+ * Mirrors the on-chain CircleStateView struct field order exactly.
+ * Order must match contracts/out/AjoCircle.sol/AjoCircle.json — ABI decoding is positional.
+ * Do NOT reorder. Regenerate src/abi.ts with: bun run scripts/generate-abi.ts
+ */
 export interface CircleState {
+  // scalars
   name: string;
   contribution: bigint;
-  roundSeconds: number;
+  roundSeconds: bigint;
   currentRound: bigint;
   roundStart: bigint;
   roundDeadline: bigint;
   started: boolean;
   finished: boolean;
+  // per-member arrays (index = member order)
   members: readonly `0x${string}`[];
   memberJoined: readonly boolean[];
   memberDeposit: readonly bigint[];
   memberMissed: readonly bigint[];
   memberClaimable: readonly bigint[];
-  memberShortfall: readonly bigint[];
+  // per-round arrays (index = round number)
   roundRecipient: readonly `0x${string}`[];
   roundPot: readonly bigint[];
   roundPaidOut: readonly boolean[];
   roundHasPaid: readonly (readonly boolean[])[];
   roundCovered: readonly (readonly boolean[])[];
+  // per-member shortfall — LAST, matches contract struct
+  memberShortfall: readonly bigint[];
 }
 
 export function useCircleState(address: `0x${string}` | undefined, chainId: number) {
@@ -33,7 +42,7 @@ export function useCircleState(address: `0x${string}` | undefined, chainId: numb
   });
 
   return {
-    state: data as CircleState | undefined,
+    state: data,
     isLoading,
     error,
     refetch,

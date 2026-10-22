@@ -18,3 +18,7 @@ studio/contracts/out/*
 # Local one-offs
 scripts/fund-from-spigot.mjs
 deployments/testnet-rehearsal-1.json
+
+# Vercel project link (local only)
+.vercel/
+studio/.vercel/

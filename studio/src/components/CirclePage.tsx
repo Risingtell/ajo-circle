@@ -329,7 +329,7 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="display text-xl font-bold truncate" style={{ color: 'var(--ink)' }}>{state.name}</h1>
+            <h1 className="display text-xl font-bold break-words" style={{ color: 'var(--ink)' }}>{state.name}</h1>
             <NetworkBadge network={network} />
           </div>
           {/* Fix 1: explorer link uses network.chainId */}
@@ -419,8 +419,19 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
       {/* Members table */}
       <div className="rounded-3xl p-5 space-y-3" style={glass}>
         <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Members</p>
+        {/* overflow-x-auto as fallback for small screens or large circles; at lg the table fills the wider column */}
         <div className="overflow-x-auto -mx-2">
-          <table className="w-full text-xs min-w-max">
+          <table className="w-full text-xs table-fixed min-w-[32rem] lg:min-w-0">
+            {/* Fixed column widths: index, member address, joined, deposit, then equal round columns */}
+            <colgroup>
+              <col className="w-6" />
+              <col className="w-[28%] lg:w-[22%]" />
+              <col className="w-12" />
+              <col className="w-16" />
+              {Array.from({ length: memberCount }).map((_, r) => (
+                <col key={r} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>#</th>
@@ -467,11 +478,11 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
                     {Array.from({ length: memberCount }).map((_, r) => {
                       const st = paymentStatus(r, mi);
                       return (
-                        <td key={r} className="py-2 px-2 text-center">
+                        <td key={r} className="py-2 px-1 text-center">
                           {st.label ? (
                             <span
-                              className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold"
-                              style={{ color: st.color, background: st.bg }}
+                              className="inline-block w-full rounded-full px-1 py-0.5 text-xs font-semibold truncate"
+                              style={{ color: st.color, background: st.bg, maxWidth: '100%' }}
                             >
                               {st.label}
                             </span>

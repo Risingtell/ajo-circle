@@ -53,9 +53,10 @@ export function HomeView({ network, onOpenCircle }: Props) {
 
       {/* ---- NOT CONNECTED ---- */}
       {!isConnected && (
-        <div className="space-y-4">
-          {/* Explainer */}
-          <div className="rounded-3xl p-6 space-y-3" style={glass}>
+        /* At lg+: side-by-side two columns. Below lg: single column stack. */
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0 lg:items-start">
+          {/* Explainer — left column */}
+          <div className="rounded-3xl p-6 space-y-3 h-full" style={glass}>
             <div
               className="size-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'rgba(18,45,69,0.07)' }}
@@ -74,8 +75,8 @@ export function HomeView({ network, onOpenCircle }: Props) {
             <ConnectKitButton label="Connect wallet to start a circle" />
           </div>
 
-          {/* Featured circle card */}
-          {network.featuredCircle && (
+          {/* Featured circle card — right column */}
+          {network.featuredCircle ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: 'var(--subtle)' }}>
                 Live on {network.name}
@@ -102,6 +103,9 @@ export function HomeView({ network, onOpenCircle }: Props) {
                 View this circle read-only <ArrowRight className="size-3.5" />
               </button>
             </div>
+          ) : (
+            /* No featured circle: keep column balanced on desktop */
+            <div className="hidden lg:block" />
           )}
         </div>
       )}

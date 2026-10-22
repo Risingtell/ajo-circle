@@ -1,0 +1,10 @@
+Layout polish for desktop screens. No contract changes, no logic changes, keep the mobile layout exactly as it is.
+
+On a laptop (1366 px and wider) the whole app is a phone-width column. The circle name is cut off with an ellipsis ("Kano Ajo, first cir...") and the members table needs a horizontal scrollbar even for a 3-round circle.
+
+1. From the lg breakpoint up, widen the main column to about 960 px. Below lg, keep the current width and spacing.
+2. Circle names wrap onto a second line instead of being cut off, on every screen size.
+3. The members table fits without horizontal scrolling for circles of up to 8 rounds at lg and wider; keep horizontal scroll as the fallback for bigger circles and on phones.
+4. Home on desktop: put the "Save together, take turns" explainer and the "Live on Arc" circle card side by side in two columns; stack them on phones as now.
+
+Check the result at 390 px, 1366 px and 1920 px widths with the featured mainnet circle (/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet) and on the home page, then run typecheck, lint and the production build.

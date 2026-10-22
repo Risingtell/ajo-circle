@@ -99,7 +99,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-md px-4 pb-12 pt-6">
+      <div className="relative z-10 mx-auto w-full max-w-md lg:max-w-4xl px-4 pb-12 pt-6">
         {view.screen === 'home' && (
           <HomeView
             network={homeNetwork}

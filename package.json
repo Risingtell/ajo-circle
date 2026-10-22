@@ -1,0 +1,9 @@
+{
+  "name": "ajo-circle-ops",
+  "private": true,
+  "type": "module",
+  "description": "Mainnet deploy and demo scripts for Ajo Circle. The app and contracts live in studio/, built with Arc Studio.",
+  "dependencies": {
+    "viem": "2.57.10"
+  }
+}

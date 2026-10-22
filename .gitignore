@@ -1,0 +1,20 @@
+# Wallet keys. Never commit.
+.env
+.env.*
+!.env.example
+
+node_modules/
+studio/node_modules/
+studio/dist/
+studio/.arc-studio/
+studio/.agents/
+studio/contracts/cache/
+
+# Keep only the two contract builds that scripts/verify-bytecode.mjs compares against mainnet.
+studio/contracts/out/*
+!studio/contracts/out/AjoFactory.sol/
+!studio/contracts/out/AjoCircle.sol/
+
+# Local one-offs
+scripts/fund-from-spigot.mjs
+deployments/testnet-rehearsal-1.json

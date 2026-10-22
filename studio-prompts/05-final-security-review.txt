@@ -1,0 +1,1 @@
+Yes, run the full security review on the current AjoCircle.sol and AjoFactory.sol. Fix any Critical, High or Medium finding with a test, re-run the suite, and redeploy to Arc testnet only if a contract changed. If nothing needs fixing, change nothing and say so.

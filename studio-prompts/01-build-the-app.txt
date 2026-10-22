@@ -1,0 +1,35 @@
+Build "Ajo Circle": a rotating savings circle (ajo / esusu) on Arc, paid in USDC.
+
+How an ajo works: a small group agrees a fixed amount and a round length. Every round each member pays the amount into the pot, and one member takes the whole pot. The turn rotates until everyone has been paid once. Today a trusted organiser holds the cash. This app replaces the organiser with a contract, so nobody holds the money and everyone can see who has paid.
+
+CONTRACTS (Solidity, Foundry, in contracts/):
+
+1. AjoCircle
+- Constructor: address usdc, string name, address[] members, uint256 contribution, uint64 roundSeconds.
+  members: 2 to 20, unique, non-zero. Payout order is the order of the members array.
+  contribution is in USDC base units (the USDC ERC-20 interface on Arc uses 6 decimals). Must be > 0.
+  roundSeconds: at least 60.
+- USDC is the ERC-20 interface at 0x3600000000000000000000000000000000000000 on both Arc testnet and mainnet. Use SafeERC20-style checked transfers. Never send to address(0).
+- join(): each member pays ONE contribution as a security deposit (transferFrom). When the last member has joined, the circle starts: round 0 begins at block.timestamp. Before that, nobody can contribute.
+- leaveBeforeStart(): a member who joined can take their deposit back while the circle has not started.
+- contribute(): a member pays the contribution for the current round. Once per member per round. The recipient of the round pays too, so the pot is members.length * contribution.
+- payout(): anyone can call it once every member has paid the current round, or once the round deadline (roundStart + roundSeconds) has passed. For each member who did not pay, cover their share from their deposit (deposit set to 0) and record a missed payment against them. If their deposit is already used, their share is simply missing from the pot. Send the pot to the round's recipient, record it, then start the next round at block.timestamp. After the last round the circle is finished.
+- withdrawDeposit(): after the circle is finished, each member takes back whatever deposit they have left. Once only.
+- Views a frontend needs: name, members, contribution, roundSeconds, currentRound, roundStart, roundDeadline, started, finished, joined(member), deposit(member), hasPaid(round, member), missedPayments(member), recipientOf(round), potOf(round), paidOut(round). Also one summary view that returns the whole state in one call.
+- Events for every state change: Joined, Left, Started, Contributed, Covered (deposit used for a missed payment), PaidOut, DepositWithdrawn, Finished.
+- Custom errors, checks-effects-interactions, a reentrancy guard on every function that moves USDC.
+
+2. AjoFactory
+- createCircle(name, members, contribution, roundSeconds) deploys an AjoCircle with the USDC address set in the factory constructor, emits CircleCreated(circle, creator, name), and indexes the circle under each member so circlesOf(address) returns every circle that address belongs to. allCircles() for a full list.
+
+TESTS (Foundry, with a mock 6-decimal USDC): a full 3-member circle from join to last payout to deposit refunds, with every balance checked; contributing twice in a round reverts; a non-member is refused; payout before everyone pays and before the deadline reverts; a member who misses a round is covered from their deposit and counted; a member who misses twice leaves the pot short and nothing reverts; leaveBeforeStart refunds; the factory indexes circles per member.
+
+DEPLOY: deploy AjoFactory to Arc testnet, create one demo circle, and print the addresses.
+
+APP (React, mobile-first, plain English, no jargon, no long dashes in any text):
+- Connect wallet.
+- Home: "Start a circle" form (circle name, amount per round in USDC, round length with presets 1 hour / 1 day / 1 week / custom, member wallet addresses in payout order, the creator is added first by default) and "My circles" from circlesOf(connected wallet).
+- Circle page: who gets paid this round and when the round closes (live countdown); a table of members with columns Joined, Deposit, and one column per round showing Paid / Not yet / Covered by deposit / Missed; a history of payouts with explorer links.
+- One main button that shows only the action the connected member needs next: Join (approve then deposit), Pay this round (approve then contribute), Pay out (when allowed, open to anyone), Take back deposit (when finished). Show the amount in USDC on every button.
+- Show every transaction hash with a link to the explorer.
+- Network config in one file with two entries: Arc testnet and Arc mainnet (chain id 5042, RPC https://rpc.mainnet.arc.io, explorer https://explorer.arc.io). The factory address per network comes from that file. Default to testnet for now. Add a visible network badge.

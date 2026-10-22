@@ -1,0 +1,7 @@
+One remaining bug in Fix 2, in src/App.tsx. No other changes.
+
+A deep link still takes the wallet's network. The useState initializer sets circleNetwork to DEFAULT_NETWORK, and the mount effect then replaces it with homeNetwork, which useActiveNetwork derives from the wallet's chain when a wallet is connected. So ?circle=0xb3d2...&network=mainnet opened with a wallet on Arc testnet still reads testnet. It is also racy, because wagmi reconnects asynchronously after the first render.
+
+Fix: in the useState initializer use `circleNetwork: getNetworkByKey(initialParams.networkKey)` (falling back to DEFAULT_NETWORK only when the key is missing or unknown), and delete the deepLinkFixed state and its mount effect entirely. The circle's network must come only from the URL or from the home list it was opened from, never from the wallet.
+
+Run typecheck and lint, then confirm both ?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet and a testnet circle URL load the right circle.

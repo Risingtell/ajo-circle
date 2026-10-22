@@ -1,0 +1,1 @@
+Yes, run the full security review of AjoCircle.sol and AjoFactory.sol now. Fix every Critical, High and Medium finding, add a test for each fix, re-run the whole test suite, and redeploy AjoFactory to Arc testnet if any contract changed (update the factory address in src/network.ts). Report the findings table and what changed.

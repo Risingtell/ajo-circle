@@ -1,0 +1,19 @@
+Two more fixes from my own review, then redeploy to Arc testnet.
+
+1. Covered payments are counted as owed, and the app has to guess.
+In payout(), a miss that the deposit covers still increments missedPayments, and owedShortfall() returns missedPayments * contribution. So a member whose miss was fully covered by their deposit is shown a shortfall they do not owe. The UI also cannot tell "covered" from "missed" and guesses (see the comment in CirclePage.tsx around the Covered label).
+Fix in AjoCircle:
+- add mapping(uint256 => mapping(address => bool)) public coveredByDeposit, set when a deposit covers a member's share for a round
+- add mapping(address => uint256) public uncoveredMisses, incremented only when nothing covered the share
+- owedShortfall(member) = uncoveredMisses[member] * contribution
+- keep missedPayments as the count of all misses
+- circleState() also returns roundCovered (bool[][] in the same shape as roundHasPaid) and memberShortfall (uint256[])
+Fix in the app: each round cell is exactly one of Paid, Covered by deposit, Missed (round paid out, member neither paid nor covered), or Not yet (round still open). No guessing. The shortfall notice uses owedShortfall.
+Tests: a covered miss gives owedShortfall 0 and coveredByDeposit true; a second, uncovered miss gives owedShortfall equal to one contribution.
+
+2. Anyone can fill someone's "My circles" with circles they never agreed to.
+createCircle() indexes the circle under every listed member, so a stranger can spam a wallet's list.
+Fix in AjoFactory: store creatorOf(circle).
+Fix in the app: "My circles" shows circles the wallet created or has joined. Circles where the wallet is listed but has not joined go in a separate, collapsed "Invitations" section showing who created it, the amount and the member count, with a Join button only on the circle page.
+
+Then re-run the whole test suite, redeploy AjoFactory to Arc testnet, update src/network.ts and AGENTS.md, and report the new address.

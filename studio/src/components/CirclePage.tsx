@@ -1,0 +1,495 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useAccount } from 'wagmi';
+import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCircleState } from '../hooks/useCircleState';
+import {
+  useApproveAndJoin,
+  useApproveAndContribute,
+  usePayout,
+  useClaim,
+  useWithdrawDeposit,
+} from '../hooks/useCircleActions';
+import { ActionButton } from './ActionButton';
+import { TxLink, AddrLink } from './TxLink';
+import { NetworkBadge } from './NetworkBadge';
+import { ConnectKitButton } from 'connectkit';
+import { type NetworkConfig, explorerAddr } from '../network';
+import { formatUsdc, formatAddress, formatCountdown, parseOnchainError } from '../utils';
+
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.64)',
+  backdropFilter: 'blur(24px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.68)',
+  boxShadow: '0 8px 32px rgba(18,45,69,0.08), inset 0 1px 0 rgba(255,255,255,0.55)',
+};
+
+const glassInner: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.46)',
+  border: '1px solid rgba(255,255,255,0.56)',
+};
+
+interface Props {
+  circleAddress: `0x${string}`;
+  /** The network this circle lives on. Always derived from URL or the home list's network,
+   *  never from the wallet's current chain. Reads and explorer links always use this. */
+  network: NetworkConfig;
+  onBack: () => void;
+}
+
+function useCountdown(deadline: number) {
+  const [display, setDisplay] = useState(() => formatCountdown(deadline));
+  useEffect(() => {
+    const id = setInterval(() => setDisplay(formatCountdown(deadline)), 1000);
+    return () => clearInterval(id);
+  }, [deadline]);
+  return display;
+}
+
+export function CirclePage({ circleAddress, network, onBack }: Props) {
+  const { address: walletAddress, chainId: walletChainId, isConnected } = useAccount();
+
+  // Fix 1: reads always use the circle's network, never the wallet's chain.
+  const { state, isLoading, refetch } = useCircleState(circleAddress, network.chainId);
+  const [lastTx, setLastTx] = useState<{ hash: `0x${string}`; label: string } | undefined>();
+  const [copied, setCopied] = useState(false);
+
+  const deadline = Number(state?.roundDeadline ?? 0);
+  const countdown = useCountdown(deadline);
+
+  const memberIndex = state
+    ? state.members.findIndex((m) => m.toLowerCase() === walletAddress?.toLowerCase())
+    : -1;
+  const isMember = memberIndex >= 0;
+  const hasJoined = isMember && (state?.memberJoined[memberIndex] ?? false);
+  const currentRound = Number(state?.currentRound ?? 0);
+  const hasPaidThisRound = isMember && (state?.roundHasPaid[currentRound]?.[memberIndex] ?? false);
+  const myClaimable = isMember ? (state?.memberClaimable[memberIndex] ?? 0n) : 0n;
+  const myDeposit = isMember ? (state?.memberDeposit[memberIndex] ?? 0n) : 0n;
+
+  // Fix 2: wallet is on wrong chain when connected but not on the circle's network.
+  const walletOnWrongChain = isConnected && walletChainId !== network.chainId;
+
+  // All write actions — targetChainId is always the circle's network.
+  const joinAction = useApproveAndJoin(
+    circleAddress,
+    network.usdcAddress,
+    state?.contribution ?? 0n,
+    walletChainId,
+    network.chainId,
+  );
+  const contributeAction = useApproveAndContribute(
+    circleAddress,
+    network.usdcAddress,
+    state?.contribution ?? 0n,
+    BigInt(currentRound),
+    walletChainId,
+    network.chainId,
+  );
+  const payoutAction = usePayout(circleAddress, walletChainId, network.chainId);
+  const claimAction = useClaim(circleAddress, walletChainId, network.chainId);
+  const withdrawAction = useWithdrawDeposit(circleAddress, walletChainId, network.chainId);
+
+  // Track previous hashes to fire toast only once per new tx
+  const prevJoinHash = useRef<string | undefined>();
+  const prevContributeHash = useRef<string | undefined>();
+  const prevPayoutHash = useRef<string | undefined>();
+  const prevClaimHash = useRef<string | undefined>();
+  const prevWithdrawHash = useRef<string | undefined>();
+
+  const handleSuccess = useCallback(
+    (hash: `0x${string}`, label: string) => {
+      setLastTx({ hash, label });
+      toast.success(label);
+      const timer = window.setTimeout(() => { void refetch(); }, 2000);
+      return () => window.clearTimeout(timer);
+    },
+    [refetch],
+  );
+
+  useEffect(() => {
+    if (joinAction.isSuccess && joinAction.hash && joinAction.hash !== prevJoinHash.current) {
+      prevJoinHash.current = joinAction.hash;
+      handleSuccess(joinAction.hash, 'Joined the circle!');
+    }
+  }, [joinAction.isSuccess, joinAction.hash, handleSuccess]);
+  useEffect(() => {
+    if (contributeAction.isSuccess && contributeAction.hash && contributeAction.hash !== prevContributeHash.current) {
+      prevContributeHash.current = contributeAction.hash;
+      handleSuccess(contributeAction.hash, 'Payment sent!');
+    }
+  }, [contributeAction.isSuccess, contributeAction.hash, handleSuccess]);
+  useEffect(() => {
+    if (payoutAction.isSuccess && payoutAction.hash && payoutAction.hash !== prevPayoutHash.current) {
+      prevPayoutHash.current = payoutAction.hash;
+      handleSuccess(payoutAction.hash, 'Round paid out!');
+    }
+  }, [payoutAction.isSuccess, payoutAction.hash, handleSuccess]);
+  useEffect(() => {
+    if (claimAction.isSuccess && claimAction.hash && claimAction.hash !== prevClaimHash.current) {
+      prevClaimHash.current = claimAction.hash;
+      handleSuccess(claimAction.hash, 'Pot collected!');
+    }
+  }, [claimAction.isSuccess, claimAction.hash, handleSuccess]);
+  useEffect(() => {
+    if (withdrawAction.isSuccess && withdrawAction.hash && withdrawAction.hash !== prevWithdrawHash.current) {
+      prevWithdrawHash.current = withdrawAction.hash;
+      handleSuccess(withdrawAction.hash, 'Deposit returned!');
+    }
+  }, [withdrawAction.isSuccess, withdrawAction.hash, handleSuccess]);
+
+  const handleCopyLink = () => {
+    const params = new URLSearchParams({ circle: circleAddress, network: network.key });
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (isLoading || !state) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-xl bg-slate-200" />
+          <div className="h-6 w-1/2 rounded bg-slate-200" />
+        </div>
+        <div className="h-32 rounded-3xl bg-slate-100" />
+        <div className="h-20 rounded-2xl bg-slate-100" />
+      </div>
+    );
+  }
+
+  const memberCount = state.members.length;
+  const pot = state.contribution * BigInt(memberCount);
+  const paidCount = state.roundHasPaid[currentRound]?.filter(Boolean).length ?? 0;
+  const deadlinePassed = deadline > 0 && countdown === 'Closed';
+  const canPayout = state.started && !state.finished && (paidCount === memberCount || deadlinePassed);
+
+  // Fix 2: switch button label names the exact network.
+  const switchNetworkLabel = `Switch to ${network.name}`;
+
+  type ActionKind = 'connect' | 'wrong-chain' | 'join' | 'pay' | 'payout' | 'claim' | 'withdraw' | 'none';
+  let primaryAction: ActionKind = 'none';
+  if (!isConnected) primaryAction = 'connect';
+  else if (walletOnWrongChain) primaryAction = 'wrong-chain';
+  else if (isMember && !state.started && !hasJoined) primaryAction = 'join';
+  else if (state.started && !state.finished && isMember && hasJoined && !hasPaidThisRound) primaryAction = 'pay';
+  else if (canPayout) primaryAction = 'payout';
+  else if (myClaimable > 0n) primaryAction = 'claim';
+  else if (state.finished && isMember && myDeposit > 0n) primaryAction = 'withdraw';
+
+  const renderPrimaryAction = () => {
+    const usdcAmt = (n: bigint) => `${formatUsdc(n)} USDC`;
+
+    switch (primaryAction) {
+      case 'connect':
+        return (
+          <div className="rounded-2xl p-4 text-center space-y-2" style={glassInner}>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>Connect a wallet to join or pay</p>
+            <ConnectKitButton />
+          </div>
+        );
+      // Fix 2: dedicated wrong-chain action.
+      case 'wrong-chain':
+        return (
+          <ActionButton
+            label={switchNetworkLabel}
+            sublabel={`Your wallet is on a different network`}
+            onClick={() => {
+              payoutAction.execute(); // reuses the switchChain logic inside (walletChainId !== targetChainId branch)
+            }}
+            isPending={false}
+            isConfirming={false}
+          />
+        );
+      case 'join':
+        return (
+          <ActionButton
+            label={joinAction.stepHint || 'Join this circle'}
+            sublabel={joinAction.stepHint ? undefined : `Security deposit: ${usdcAmt(state.contribution)}`}
+            onClick={() => {
+              void joinAction.execute(walletAddress!).catch((e: unknown) => toast.error(parseOnchainError(e)));
+            }}
+            isPending={joinAction.isPending}
+            isConfirming={joinAction.isConfirming}
+          />
+        );
+      case 'pay':
+        return (
+          <ActionButton
+            label={contributeAction.stepHint || 'Pay this round'}
+            sublabel={contributeAction.stepHint ? undefined : usdcAmt(state.contribution)}
+            onClick={() => {
+              void contributeAction.execute(walletAddress!).catch((e: unknown) => toast.error(parseOnchainError(e)));
+            }}
+            isPending={contributeAction.isPending}
+            isConfirming={contributeAction.isConfirming}
+          />
+        );
+      case 'payout':
+        return (
+          <ActionButton
+            label={`Pay out round ${currentRound + 1}`}
+            sublabel={`${usdcAmt(pot)} to ${formatAddress(state.members[currentRound])}`}
+            onClick={() => { payoutAction.execute(); }}
+            isPending={payoutAction.isPending}
+            isConfirming={payoutAction.isConfirming}
+          />
+        );
+      case 'claim':
+        return (
+          <ActionButton
+            label="Collect your pot"
+            sublabel={usdcAmt(myClaimable)}
+            onClick={() => { claimAction.execute(); }}
+            isPending={claimAction.isPending}
+            isConfirming={claimAction.isConfirming}
+          />
+        );
+      case 'withdraw':
+        return (
+          <ActionButton
+            label="Take back deposit"
+            sublabel={usdcAmt(myDeposit)}
+            onClick={() => { withdrawAction.execute(); }}
+            isPending={withdrawAction.isPending}
+            isConfirming={withdrawAction.isConfirming}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const paymentStatus = (round: number, mi: number): { label: string; color: string; bg: string } => {
+    if (state.roundPaidOut[round]) {
+      if (state.roundHasPaid[round]?.[mi]) {
+        if (state.roundCovered[round]?.[mi]) {
+          return { label: 'Covered', color: '#b45309', bg: 'rgba(180,83,9,0.08)' };
+        }
+        return { label: 'Paid', color: 'var(--success)', bg: 'rgba(26,128,71,0.08)' };
+      }
+      return { label: 'Missed', color: 'var(--danger)', bg: 'rgba(186,43,76,0.08)' };
+    }
+    if (round < currentRound) {
+      if (state.roundHasPaid[round]?.[mi]) return { label: 'Paid', color: 'var(--success)', bg: 'rgba(26,128,71,0.08)' };
+      return { label: 'Missed', color: 'var(--danger)', bg: 'rgba(186,43,76,0.08)' };
+    }
+    if (round === currentRound) {
+      if (state.roundHasPaid[round]?.[mi]) return { label: 'Paid', color: 'var(--success)', bg: 'rgba(26,128,71,0.08)' };
+      return { label: 'Not yet', color: 'var(--subtle)', bg: 'var(--surface-muted)' };
+    }
+    return { label: '', color: 'var(--subtle)', bg: 'transparent' };
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl transition-opacity hover:opacity-60" style={{ color: 'var(--muted)' }}>
+          <ArrowLeft className="size-5" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="display text-xl font-bold truncate" style={{ color: 'var(--ink)' }}>{state.name}</h1>
+            <NetworkBadge network={network} />
+          </div>
+          {/* Fix 1: explorer link uses network.chainId */}
+          <AddrLink address={circleAddress} chainId={network.chainId} label={`${circleAddress.slice(0, 10)}...`} />
+        </div>
+        <button
+          onClick={handleCopyLink}
+          className="flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all hover:opacity-70"
+          style={{ background: 'rgba(255,255,255,0.64)', border: '1px solid var(--border)', color: copied ? 'var(--success)' : 'var(--muted)' }}
+        >
+          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          {copied ? 'Copied' : 'Copy link'}
+        </button>
+      </div>
+
+      {/* Hero card */}
+      <div className="rounded-3xl p-5 space-y-3" style={glass}>
+        {!state.started ? (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Waiting to start</p>
+            <p className="display text-2xl font-bold tabular-nums" style={{ color: 'var(--ink)' }}>
+              {state.memberJoined.filter(Boolean).length}/{memberCount} joined
+            </p>
+            <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              The circle starts when all {memberCount} members have paid their deposit.
+            </p>
+          </>
+        ) : state.finished ? (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--success)' }}>Circle finished</p>
+            <p className="display text-2xl font-bold" style={{ color: 'var(--ink)' }}>All {memberCount} rounds complete</p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+                Round {currentRound + 1} of {memberCount}
+              </p>
+              <span className="text-xs tabular-nums font-medium" style={{ color: countdown === 'Closed' ? 'var(--danger)' : 'var(--ink-2)' }}>
+                {countdown === 'Closed' ? 'Round closed' : `Closes in ${countdown}`}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>This round goes to</p>
+              <p className="display text-lg font-bold mt-0.5" style={{ color: 'var(--ink)' }}>
+                {isConnected && state.members[currentRound] === walletAddress
+                  ? 'You'
+                  : formatAddress(state.members[currentRound])}
+              </p>
+            </div>
+            <div className="rounded-2xl p-3" style={{ background: 'rgba(26,128,71,0.07)', border: '1px solid rgba(26,128,71,0.12)' }}>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>Pot this round</p>
+              <p className="display text-2xl font-bold tabular-nums mt-0.5" style={{ color: 'var(--success)' }}>
+                {formatUsdc(pot)} USDC
+              </p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>Contributions in</p>
+                <span className="text-xs tabular-nums font-medium" style={{ color: 'var(--ink-2)' }}>{paidCount}/{memberCount}</span>
+              </div>
+              <div className="flex gap-1">
+                {state.members.map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-1.5 flex-1 rounded-full transition-colors"
+                    style={{ background: state.roundHasPaid[currentRound]?.[i] ? 'var(--success)' : 'var(--border)' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Primary action */}
+      {renderPrimaryAction()}
+
+      {/* Last tx receipt */}
+      {lastTx && (
+        <div className="rounded-2xl p-3 text-center" style={glassInner}>
+          {/* Fix 1: explorer link uses network.chainId */}
+          <TxLink hash={lastTx.hash} chainId={network.chainId} label={`${lastTx.label} View transaction`} />
+        </div>
+      )}
+
+      {/* Members table */}
+      <div className="rounded-3xl p-5 space-y-3" style={glass}>
+        <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Members</p>
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-xs min-w-max">
+            <thead>
+              <tr>
+                <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>#</th>
+                <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Member</th>
+                <th className="text-center pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Joined</th>
+                <th className="text-right pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Deposit</th>
+                {Array.from({ length: memberCount }).map((_, r) => (
+                  <th key={r} className="text-center pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>
+                    R{r + 1}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {state.members.map((member, mi) => {
+                const isMe = isConnected && member.toLowerCase() === walletAddress?.toLowerCase();
+                return (
+                  <tr
+                    key={mi}
+                    className="border-t"
+                    style={{ borderColor: 'var(--border)', background: isMe ? 'rgba(133,177,237,0.07)' : 'transparent' }}
+                  >
+                    <td className="py-2 px-2 font-semibold tabular-nums" style={{ color: 'var(--subtle)' }}>{mi + 1}</td>
+                    <td className="py-2 px-2">
+                      {/* Fix 1: explorer link uses network.chainId */}
+                      <a
+                        href={explorerAddr(network.chainId, member)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mono hover:underline"
+                        style={{ color: isMe ? 'var(--accent-hover)' : 'var(--ink-2)' }}
+                      >
+                        {isMe ? 'You' : formatAddress(member)}
+                      </a>
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <span style={{ color: state.memberJoined[mi] ? 'var(--success)' : 'var(--subtle)' }}>
+                        {state.memberJoined[mi] ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: 'var(--ink-2)' }}>
+                      {formatUsdc(state.memberDeposit[mi])}
+                    </td>
+                    {Array.from({ length: memberCount }).map((_, r) => {
+                      const st = paymentStatus(r, mi);
+                      return (
+                        <td key={r} className="py-2 px-2 text-center">
+                          {st.label ? (
+                            <span
+                              className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold"
+                              style={{ color: st.color, background: st.bg }}
+                            >
+                              {st.label}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--border)' }}>-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Payout history */}
+      {state.roundPaidOut.some(Boolean) && (
+        <div className="rounded-3xl p-5 space-y-3" style={glass}>
+          <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Payout history</p>
+          <div className="space-y-2">
+            {state.roundPaidOut.map((paid, r) => {
+              if (!paid) return null;
+              const recipient = state.roundRecipient[r];
+              const isMe = isConnected && recipient.toLowerCase() === walletAddress?.toLowerCase();
+              return (
+                <div key={r} className="flex items-center justify-between rounded-xl px-3 py-2" style={glassInner}>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
+                      Round {r + 1} to {isMe ? 'You' : formatAddress(recipient)}
+                    </p>
+                    {/* Fix 1: explorer link uses network.chainId */}
+                    <AddrLink address={recipient} chainId={network.chainId} />
+                  </div>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--success)' }}>
+                    {formatUsdc(state.roundPot[r])} USDC
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Shortfall notice */}
+      {isMember && (state.memberShortfall[memberIndex] ?? 0n) > 0n && (
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(186,43,76,0.07)', border: '1px solid rgba(186,43,76,0.18)' }}>
+          <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+            You have {Number(state.memberMissed[memberIndex])} missed payment{Number(state.memberMissed[memberIndex]) !== 1 ? 's' : ''}{' '}
+            and owe {formatUsdc(state.memberShortfall[memberIndex])} USDC to the group.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

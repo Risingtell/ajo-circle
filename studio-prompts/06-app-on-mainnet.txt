@@ -1,0 +1,16 @@
+Make the app work on Arc mainnet as well as testnet. No contract changes.
+
+The contracts are now live on Arc mainnet, deployed from this workspace's build:
+- AjoFactory on Arc mainnet: 0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9
+- A real circle on Arc mainnet, "Kano Ajo, first circle": 0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8
+
+Right now the wagmi config only knows arcTestnet, and every component reads DEFAULT_NETWORK, so a wallet on Arc mainnet cannot use the app.
+
+1. src/config.ts: add Arc mainnet using `arc` from viem/chains (chain id 5042), next to arcTestnet. Keep Ethereum mainnet for ENS.
+2. src/network.ts: set the mainnet factoryAddress to 0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9. Add an optional featuredCircle per network; set mainnet's to 0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8. Make Arc mainnet the default network.
+3. One active network for the whole app: if a wallet is connected on Arc mainnet or Arc testnet, use that network; if it is connected on any other chain, show a clear "Switch to Arc" button (wagmi switchChain to the default network); if no wallet is connected, use the default network. Replace every DEFAULT_NETWORK.factoryAddress / usdcAddress / chainId use in components and hooks with the active network. Explorer links follow the active network.
+4. Read-only viewing without a wallet: a circle page must load and show its full state with no wallet connected, read through the network's public RPC. Give every circle page a shareable URL (for example ?circle=0x...&network=mainnet) and a Copy link button. Opening that URL goes straight to the circle page.
+5. Home with no wallet connected: a short plain-English explainer of how an ajo works (three or four sentences, no jargon, no long dashes) and a "See a real circle on Arc mainnet" card that opens the featured circle read-only.
+6. Keep the network badge, and let the badge open a small menu to switch between Arc mainnet and Arc testnet when a wallet is connected.
+
+Run typecheck and lint, fix everything, update AGENTS.md (mainnet factory, featured circle, how the active network is chosen), and confirm the preview loads the featured mainnet circle with no wallet connected.

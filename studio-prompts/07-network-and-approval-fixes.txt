@@ -1,0 +1,12 @@
+Three bugs from my review of the mainnet change. No contract changes.
+
+1. Reads follow the wallet's chain instead of the circle's network.
+CirclePage.tsx uses `chainIdNum = chainId ?? network.chainId` and HomeView.tsx uses `activeChainId = chainId ?? network.chainId`. useAccount().chainId is the wallet's real chain even when it is not Arc (for example Ethereum mainnet, which is in the wagmi config for ENS), so every read then queries the wrong chain and the page shows an empty circle. Fix: every read, every explorer link and every action target uses network.chainId. The raw wallet chainId is used only to decide whether to show a switch button.
+
+2. A shared link's network is overridden by the wallet.
+useActiveNetwork prefers the wallet's Arc network over the URL. So ?circle=0xb3d2...&network=mainnet opened by someone whose wallet is on Arc testnet reads the mainnet address on testnet. Fix: a circle page has its own network, taken from its URL (or, when opened from the home list, the network the list was read from). Reads always use that network. If the wallet is on a different chain, the action button becomes "Switch to Arc mainnet" (or testnet) and calls switchChain to the circle's network; after the switch it shows the normal action. Home and the create form keep using the active network as now.
+
+3. Approve and the second transaction race.
+In useApproveAndJoin and useApproveAndContribute, `await approveWrite(...)` only waits for the approval to be SUBMITTED, then join/contribute is sent at once. Its gas estimate runs before the approval is mined, so the wallet shows an "insufficient allowance" failure. Fix: read the current USDC allowance first and skip approve when it already covers the amount; otherwise send approve, wait for its receipt (waitForTransactionReceipt on a public client for the circle's network), and only then send join/contribute. Show "Approving USDC (1 of 2)" and "Joining (2 of 2)" / "Paying (2 of 2)" states on the button, and surface a rejected or failed approval as a readable error.
+
+Run typecheck and lint, fix everything, and confirm in the preview that the featured mainnet circle still loads read-only with no wallet.

@@ -2,6 +2,7 @@
 // The bytecode comes unchanged from studio/contracts/out, which Arc Studio compiled and tested.
 //
 // Usage: node --env-file=.env scripts/ajo.mjs [--testnet] <command> [args]
+// status needs no keys: node scripts/ajo.mjs status
 //   deploy                          deploy AjoFactory with the studio artifact
 //   create <name> <usdc> <seconds>  create a circle: deployer, member A, member B, in that payout order
 //   fund <usdc>                     send <usdc> from the deployer to members A and B
@@ -29,11 +30,26 @@ const factoryArtifact = JSON.parse(readFileSync("studio/contracts/out/AjoFactory
 const circleAbi = JSON.parse(readFileSync("studio/contracts/out/AjoCircle.sol/AjoCircle.json", "utf8")).abi;
 const erc20 = parseAbi(["function balanceOf(address) view returns (uint256)", "function approve(address,uint256) returns (bool)", "function transfer(address,uint256) returns (bool)"]);
 
-const wallets = {
-  deployer: privateKeyToAccount(process.env.AJO_DEPLOYER_KEY),
-  a: privateKeyToAccount(process.env.AJO_MEMBER_A_KEY),
-  b: privateKeyToAccount(process.env.AJO_MEMBER_B_KEY),
-};
+// Keys are read only when a command signs, so the read-only status works without a .env.
+const KEYS = { deployer: "AJO_DEPLOYER_KEY", a: "AJO_MEMBER_A_KEY", b: "AJO_MEMBER_B_KEY" };
+const haveKeys = Object.values(KEYS).every((k) => process.env[k]);
+// Fail before any network handle is open: exiting mid-request crashes Node on Windows.
+if (["deploy", "create", "fund", "join", "pay", "payout", "claim", "withdraw"].includes(cmd) && !haveKeys) {
+  console.error(`"${cmd}" signs transactions. Copy .env.example to .env, fill in three wallets, and run with node --env-file=.env.`);
+  process.exit(1);
+}
+const wallets = new Proxy({}, {
+  get(_, name) {
+    if (!(name in KEYS)) return undefined;
+    if (!process.env[KEYS[name]]) {
+      console.error(`${KEYS[name]} is not set. Copy .env.example to .env, fill in three wallets, and run with node --env-file=.env.`);
+      process.exit(1);
+    }
+    return privateKeyToAccount(process.env[KEYS[name]]);
+  },
+  ownKeys: () => Object.keys(KEYS),
+  getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
+});
 const pc = createPublicClient({ chain, transport: http() });
 const walletOf = (name) => createWalletClient({ account: wallets[name], chain, transport: http() });
 
@@ -108,7 +124,7 @@ switch (cmd) {
     }
     break;
   case "status": {
-    for (const [n, acct] of Object.entries(wallets)) console.log(n.padEnd(9), acct.address, usd(await balance(acct.address)), "USDC");
+    if (haveKeys) for (const [n, acct] of Object.entries(wallets)) console.log(n.padEnd(9), acct.address, usd(await balance(acct.address)), "USDC");
     if (state.factory) console.log("factory  ", state.factory);
     if (state.circle) {
       const s = await readCircle("circleState");
@@ -120,4 +136,5 @@ switch (cmd) {
   }
   default:
     console.log("commands: deploy create fund join pay payout claim withdraw status (add --testnet for Arc testnet)");
+    process.exitCode = cmd ? 1 : 0;
 }

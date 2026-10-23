@@ -27,7 +27,7 @@ There is no admin and no upgrade path. Nobody, including the person who created 
 
 ## How it was built in Arc Studio
 
-The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over ten turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
+The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over twelve turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
 
 - Studio wrote `AjoCircle` and `AjoFactory`, 46 Foundry tests, deployed every version to Arc testnet, and built the React app.
 - Studio's security reviews moved payouts to collect-your-pot (a frozen recipient could otherwise stall a push payout and the whole circle with it), let a deposit cover more than one miss, check that the full amount arrives on every incoming transfer, and check that the USDC address is a contract.
@@ -45,6 +45,7 @@ The contracts, the tests and the app were all written in Arc Studio, driven from
 npm install
 node scripts/verify-bytecode.mjs   # mainnet code matches studio/contracts/out
 node scripts/evidence.mjs          # re-reads every mainnet transaction from the chain
+node scripts/ajo.mjs status        # the circle's full state, read live (no keys needed)
 ```
 
 The same cycle ran first on Arc testnet, with one member skipping a round so their deposit covered it: `node scripts/verify-bytecode.mjs --testnet` and `node scripts/evidence.mjs --testnet` ([EVIDENCE-testnet.md](EVIDENCE-testnet.md)).

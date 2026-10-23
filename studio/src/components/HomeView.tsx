@@ -78,23 +78,23 @@ export function HomeView({ network, onOpenCircle }: Props) {
           {/* Featured circle card — right column */}
           {network.featuredCircle ? (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: 'var(--subtle)' }}>
-                Live on {network.name}
-              </p>
-              <div className="relative">
-                <CircleCard
-                  address={network.featuredCircle}
-                  chainId={network.chainId}
-                  onClick={() => onOpenCircle(network.featuredCircle!)}
-                />
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--subtle)' }}>
+                  Live on {network.name}
+                </p>
                 <div
-                  className="absolute top-3 right-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
                   style={{ background: 'rgba(26,128,71,0.12)', color: '#1a8047', border: '1px solid rgba(26,128,71,0.25)' }}
                 >
                   <span className="inline-block size-1.5 rounded-full" style={{ background: '#1a8047' }} />
                   Real circle
                 </div>
               </div>
+              <CircleCard
+                address={network.featuredCircle}
+                chainId={network.chainId}
+                onClick={() => onOpenCircle(network.featuredCircle!)}
+              />
               <button
                 onClick={() => onOpenCircle(network.featuredCircle!)}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 text-xs font-semibold transition-opacity hover:opacity-70"

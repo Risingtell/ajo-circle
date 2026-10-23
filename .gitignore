@@ -22,3 +22,6 @@ deployments/testnet-rehearsal-1.json
 # Vercel project link (local only)
 .vercel/
 studio/.vercel/
+
+# Arc Studio sandbox logs
+studio/console.jsonl

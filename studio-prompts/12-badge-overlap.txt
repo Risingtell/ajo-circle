@@ -1,0 +1,5 @@
+One small visual bug on the home page. No contract changes, nothing else.
+
+In HomeView.tsx the "Real circle" badge is absolutely positioned (absolute top-3 right-3) over the featured CircleCard. CircleCard already shows the pot ("0.6 USDC") in that same top-right corner, so the two texts are drawn on top of each other and read as garbage. It is visible at every width.
+
+Fix: remove the absolute overlay and put the "Real circle" badge on the "Live on Arc" label row above the card, right-aligned, so nothing overlaps. Check the home page at 390, 1366 and 1920 px, then run typecheck, lint and the production build.

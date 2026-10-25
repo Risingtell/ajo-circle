@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCircleState } from '../hooks/useCircleState';
 import {
@@ -15,7 +15,7 @@ import { TxLink, AddrLink } from './TxLink';
 import { NetworkBadge } from './NetworkBadge';
 import { ConnectKitButton } from 'connectkit';
 import { type NetworkConfig, explorerAddr } from '../network';
-import { formatUsdc, formatAddress, formatCountdown, parseOnchainError } from '../utils';
+import { formatUsdc, formatAddress, formatCountdown, parseOnchainError, formatRoundLengthWords } from '../utils';
 
 const glass: React.CSSProperties = {
   background: 'rgba(255,255,255,0.64)',
@@ -224,7 +224,9 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
         return (
           <div className="rounded-2xl p-4 text-center space-y-2" style={glassInner}>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>Connect a wallet to join or pay</p>
-            <ConnectKitButton />
+            <div className="flex justify-center">
+              <ConnectKitButton />
+            </div>
           </div>
         );
       // Fix 2: dedicated wrong-chain action.
@@ -328,11 +330,16 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
           <ArrowLeft className="size-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="display text-xl font-bold break-words" style={{ color: 'var(--ink)' }}>{state.name}</h1>
             <NetworkBadge network={network} />
           </div>
-          {/* Fix 1: explorer link uses network.chainId */}
+          {/* Circle terms in plain words */}
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+            {formatUsdc(state.contribution)} USDC per round,{' '}
+            {formatRoundLengthWords(Number(state.roundSeconds))},{' '}
+            {memberCount} members, pot {formatUsdc(state.contribution * BigInt(memberCount))} USDC
+          </p>
           <AddrLink address={circleAddress} chainId={network.chainId} label={`${circleAddress.slice(0, 10)}...`} />
         </div>
         <button
@@ -419,23 +426,28 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
       {/* Members table */}
       <div className="rounded-3xl p-5 space-y-3" style={glass}>
         <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Members</p>
-        {/* overflow-x-auto as fallback for small screens or large circles; at lg the table fills the wider column */}
+        {/* On mobile: member column is sticky so round columns scroll behind it.
+            At lg+: no sticky, table fills the wider column naturally. */}
         <div className="overflow-x-auto -mx-2">
-          <table className="w-full text-xs table-fixed min-w-[32rem] lg:min-w-0">
-            {/* Fixed column widths: index, member address, joined, deposit, then equal round columns */}
+          <table className="w-full text-xs min-w-max lg:min-w-0 lg:table-fixed">
             <colgroup>
               <col className="w-6" />
-              <col className="w-[28%] lg:w-[22%]" />
+              <col style={{ minWidth: '7rem' }} className="lg:w-[22%]" />
               <col className="w-12" />
-              <col className="w-16" />
+              <col className="w-20" />
               {Array.from({ length: memberCount }).map((_, r) => (
-                <col key={r} />
+                <col key={r} className="w-16" />
               ))}
             </colgroup>
             <thead>
               <tr>
                 <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>#</th>
-                <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Member</th>
+                <th
+                  className="text-left pb-2 px-2 font-semibold sticky left-0 lg:static"
+                  style={{ color: 'var(--muted)', background: 'rgba(249,249,252,0.97)' }}
+                >
+                  Member
+                </th>
                 <th className="text-center pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Joined</th>
                 <th className="text-right pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Deposit</th>
                 {Array.from({ length: memberCount }).map((_, r) => (
@@ -448,15 +460,18 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
             <tbody>
               {state.members.map((member, mi) => {
                 const isMe = isConnected && member.toLowerCase() === walletAddress?.toLowerCase();
+                const rowBg = isMe ? 'rgba(133,177,237,0.07)' : 'transparent';
                 return (
                   <tr
                     key={mi}
                     className="border-t"
-                    style={{ borderColor: 'var(--border)', background: isMe ? 'rgba(133,177,237,0.07)' : 'transparent' }}
+                    style={{ borderColor: 'var(--border)', background: rowBg }}
                   >
                     <td className="py-2 px-2 font-semibold tabular-nums" style={{ color: 'var(--subtle)' }}>{mi + 1}</td>
-                    <td className="py-2 px-2">
-                      {/* Fix 1: explorer link uses network.chainId */}
+                    <td
+                      className="py-2 px-2 sticky left-0 lg:static"
+                      style={{ background: isMe ? 'rgba(133,177,237,0.07)' : 'rgba(249,249,252,0.97)' }}
+                    >
                       <a
                         href={explorerAddr(network.chainId, member)}
                         target="_blank"
@@ -472,8 +487,27 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
                         {state.memberJoined[mi] ? 'Yes' : 'No'}
                       </span>
                     </td>
-                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: 'var(--ink-2)' }}>
-                      {formatUsdc(state.memberDeposit[mi])}
+                    <td className="py-2 px-2 text-right" style={{ color: 'var(--ink-2)' }}>
+                      {(() => {
+                        const dep = state.memberDeposit[mi];
+                        if (!state.finished) {
+                          return <span className="tabular-nums">{formatUsdc(dep)}</span>;
+                        }
+                        if (dep > 0n) {
+                          return (
+                            <span>
+                              <span className="tabular-nums">{formatUsdc(dep)}</span>
+                              <span className="block text-xs" style={{ color: 'var(--muted)' }}>to take back</span>
+                            </span>
+                          );
+                        }
+                        // deposit is 0 — find which round it was used for
+                        const coveredRound = state.roundCovered.findIndex((rc) => rc[mi]);
+                        if (coveredRound >= 0) {
+                          return <span style={{ color: '#b45309' }}>Used for R{coveredRound + 1}</span>;
+                        }
+                        return <span style={{ color: 'var(--success)' }}>Returned</span>;
+                      })()}
                     </td>
                     {Array.from({ length: memberCount }).map((_, r) => {
                       const st = paymentStatus(r, mi);
@@ -503,7 +537,32 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
       {/* Payout history */}
       {state.roundPaidOut.some(Boolean) && (
         <div className="rounded-3xl p-5 space-y-3" style={glass}>
-          <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Payout history</p>
+          {/* Heading + explorer links */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Payout history</p>
+            <div className="flex items-center gap-3">
+              <a
+                href={`${network.explorer}/address/${circleAddress}?tab=logs`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-70"
+                style={{ color: 'var(--accent-hover)' }}
+              >
+                <ExternalLink className="size-3" />
+                All payments
+              </a>
+              <a
+                href={`${network.explorer}/address/${circleAddress}?tab=contract`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-70"
+                style={{ color: 'var(--accent-hover)' }}
+              >
+                <ExternalLink className="size-3" />
+                Verified source
+              </a>
+            </div>
+          </div>
           <div className="space-y-2">
             {state.roundPaidOut.map((paid, r) => {
               if (!paid) return null;
@@ -513,10 +572,18 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
                 <div key={r} className="flex items-center justify-between rounded-xl px-3 py-2" style={glassInner}>
                   <div>
                     <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
-                      Round {r + 1} to {isMe ? 'You' : formatAddress(recipient)}
+                      Round {r + 1}
                     </p>
-                    {/* Fix 1: explorer link uses network.chainId */}
-                    <AddrLink address={recipient} chainId={network.chainId} />
+                    {/* One explorer link for the recipient — no duplicate */}
+                    <a
+                      href={explorerAddr(network.chainId, recipient)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs mono hover:underline"
+                      style={{ color: isMe ? 'var(--accent-hover)' : 'var(--muted)' }}
+                    >
+                      {isMe ? 'You' : formatAddress(recipient)}
+                    </a>
                   </div>
                   <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--success)' }}>
                     {formatUsdc(state.roundPot[r])} USDC

@@ -53,7 +53,8 @@ export function HomeView({ network, onOpenCircle }: Props) {
 
       {/* ---- NOT CONNECTED ---- */}
       {!isConnected && (
-        /* At lg+: side-by-side two columns. Below lg: single column stack. */
+        <div className="space-y-4">
+        {/* At lg+: side-by-side two columns. Below lg: single column stack. */}
         <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0 lg:items-start">
           {/* Explainer — left column */}
           <div className="rounded-3xl p-6 space-y-3 h-full" style={glass}>
@@ -72,7 +73,9 @@ export function HomeView({ network, onOpenCircle }: Props) {
                 Normally a trusted organiser holds the money. Here a smart contract on Arc holds it instead, so no one person controls the funds and every payment is visible to all members.
               </p>
             </div>
-            <ConnectKitButton label="Connect wallet to start a circle" />
+            <div className="flex justify-center">
+              <ConnectKitButton label="Connect wallet to start a circle" />
+            </div>
           </div>
 
           {/* Featured circle card — right column */}
@@ -107,6 +110,10 @@ export function HomeView({ network, onOpenCircle }: Props) {
             /* No featured circle: keep column balanced on desktop */
             <div className="hidden lg:block" />
           )}
+        </div>
+
+        {/* Disabled form preview so visitors can see what creating a circle involves */}
+        <CreateCircleForm network={network} onCreated={handleCreated} disabled />
         </div>
       )}
 

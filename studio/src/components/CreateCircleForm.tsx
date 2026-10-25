@@ -34,9 +34,11 @@ const ROUND_PRESETS = [
 interface Props {
   network: NetworkConfig;
   onCreated: (circleAddress: `0x${string}`) => void;
+  /** When true: all inputs are read-only and the button says "Connect wallet to start a circle". Used for the pre-connect preview on the home page. */
+  disabled?: boolean;
 }
 
-export function CreateCircleForm({ network, onCreated }: Props) {
+export function CreateCircleForm({ network, onCreated, disabled = false }: Props) {
   const { address, chainId, isConnected } = useAccount();
 
   const [circleName, setCircleName] = useState('');
@@ -118,7 +120,7 @@ export function CreateCircleForm({ network, onCreated }: Props) {
   const inputStyle = { color: 'var(--ink)', background: 'transparent', outline: 'none', width: '100%' };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={disabled ? { opacity: 0.72, pointerEvents: 'none' } : undefined}>
       <div className="rounded-3xl p-5 space-y-4" style={glass.card}>
         <h2 className="display text-lg font-bold" style={{ color: 'var(--ink)' }}>Start a circle</h2>
 
@@ -246,14 +248,14 @@ export function CreateCircleForm({ network, onCreated }: Props) {
       </div>
 
       <ActionButton
-        label={!isConnected ? 'Connect wallet to continue' : 'Create circle'}
+        label={disabled ? 'Connect wallet to start a circle' : (!isConnected ? 'Connect wallet to continue' : 'Create circle')}
         sublabel={
-          amountInput && !isNaN(parseFloat(amountInput)) && members.filter(m => m.trim()).length >= 2
+          !disabled && amountInput && !isNaN(parseFloat(amountInput)) && members.filter(m => m.trim()).length >= 2
             ? `${members.filter(m => m.trim()).length} members, ${formatUsdc(parseUnits(amountInput || '0', 6))} USDC deposit each`
             : undefined
         }
-        onClick={handleCreate}
-        disabled={!isConnected}
+        onClick={disabled ? () => undefined : handleCreate}
+        disabled={disabled || !isConnected}
         isPending={isPending}
         isConfirming={isConfirming}
       />

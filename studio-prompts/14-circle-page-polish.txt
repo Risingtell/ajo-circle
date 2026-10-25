@@ -1,0 +1,21 @@
+App polish from an outside review. No contract changes, no ABI changes, no new dependencies. Keep the turn 13 change (tracing and console-capture load only when import.meta.env.DEV is true) exactly as it is.
+
+1. Circle page header: under the circle name, show the circle's terms in plain words from circleState: the amount per round (for example "0.20 USDC per round"), the round length in words ("1 hour", "1 day", "1 week", otherwise hours or minutes), the number of members, and the pot per round (amount times members).
+
+2. Explorer links on the circle page. Arc's public RPC only allows small block ranges for getLogs, so do not query event history from the browser. Instead add two links that use the circle page's own network explorer: "See every payment on the explorer" to /address/<circle>?tab=logs, and "Contract source (verified)" to /address/<circle>?tab=contract. Put them next to the Payout history heading.
+
+3. Payout history rows: each row currently links the recipient's address twice. Show the recipient once (one explorer link) and the pot amount.
+
+4. Members table, Deposit column. A deposit only reaches 0 by covering a missed round or by being taken back. When the circle is finished: deposit 0 and no covered round for that member shows "Returned"; deposit 0 with a covered round shows "Used for R<n>" (the round it covered); deposit above 0 shows the amount followed by "to take back". While the circle is running, keep showing the amount held.
+
+5. Phone width (390 px): the R1 to Rn columns must be readable without the page scrolling sideways. Choose the cleanest option, for example one card per member on narrow screens, or a table that scrolls inside its card with the member column pinned. Keep the desktop table as it is.
+
+6. Centre the "Connect Wallet" button under its centred text, on the home page and on the circle page.
+
+7. Home page with no wallet connected: show the "Start a circle" form so visitors can see what creating a circle involves (name, amount per round, round length, members), with the inputs disabled and the create button replaced by "Connect wallet to start a circle". With a wallet connected it works exactly as now.
+
+8. Tests: rename test_DepositCoversMultipleMisses_IfDepositLargeEnough to test_SecondMissNotCovered_PotShort and fix its comments so they say what it checks (the deposit covers the first miss, the second miss is not covered and the pot is short). No change to any test logic or assertion. All 46 tests must still pass.
+
+9. All new copy in plain English with no long dashes.
+
+Then run typecheck, lint, forge test and vite build. Report the forge test count, and confirm that the files in dist/assets still contain 0 occurrences of studio-trace, studio-console-log, patching fetch and EIP-1193 patch. Check the featured circle (/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet) and the home page at 390 px and 1366 px with no wallet connected, and report what each shows.

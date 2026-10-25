@@ -1017,13 +1017,13 @@ contract AjoCircleTest is Test {
     // 17. Deposit decremented by _contribution per miss (not zeroed entirely)
     // ══════════════════════════════════════════════════════════════════════════
 
-    /// Alice misses round 0 → deposit goes from CONTRIBUTION to 0 (one full decrement).
-    /// Alice misses round 1 → deposit stays 0, no coverage, pot is short.
-    /// missedPayments[alice] == 2, deposit[alice] == 0, potOf[1] < memberCount * CONTRIBUTION.
-    function test_DepositCoversMultipleMisses_IfDepositLargeEnough() public {
+    /// Round 0: alice misses and her deposit covers the shortfall (deposit goes from CONTRIBUTION to 0,
+    /// pot is full). Round 1: alice misses again, but her deposit is already 0 so nothing covers her
+    /// share and the pot ends up short. Checks that the second miss is NOT covered and the pot is short.
+    function test_SecondMissNotCovered_PotShort() public {
         // Use a fresh 3-member circle (alice=0, bob=1, carol=2) — same as setUp().
 
-        // --- Round 0: alice misses. deposit == CONTRIBUTION >= CONTRIBUTION → fully covered ---
+        // --- Round 0: alice misses. deposit == CONTRIBUTION so it fully covers her share.
         // _allJoin() funds all three for the join deposit and calls join().
         _allJoin();
 
@@ -1034,7 +1034,7 @@ contract AjoCircleTest is Test {
         vm.prank(carol); circle.contribute(0);
 
         vm.warp(block.timestamp + ROUND_SECS + 1);
-        circle.payout(); // alice missed; deposit(CONTRIBUTION) covers her → deposit becomes 0
+        circle.payout(); // alice missed; deposit == CONTRIBUTION covers her share, deposit becomes 0
 
         assertEq(circle.missedPayments(alice), 1);
         assertEq(circle.deposit(alice),        0);

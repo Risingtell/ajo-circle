@@ -36,6 +36,27 @@ export function formatRoundLength(seconds: number): string {
   return `${Math.round(seconds / (86400 * 7))}w`;
 }
 
+/** Plain-English round length: "1 hour", "2 days", "1 week", "45 minutes", etc. */
+export function formatRoundLengthWords(seconds: number): string {
+  if (seconds === 3600) return '1 hour';
+  if (seconds === 86400) return '1 day';
+  if (seconds === 604800) return '1 week';
+  if (seconds < 3600) {
+    const m = Math.round(seconds / 60);
+    return `${m} minute${m !== 1 ? 's' : ''}`;
+  }
+  if (seconds < 86400) {
+    const h = Math.round(seconds / 3600);
+    return `${h} hour${h !== 1 ? 's' : ''}`;
+  }
+  if (seconds < 86400 * 7) {
+    const d = Math.round(seconds / 86400);
+    return `${d} day${d !== 1 ? 's' : ''}`;
+  }
+  const w = Math.round(seconds / (86400 * 7));
+  return `${w} week${w !== 1 ? 's' : ''}`;
+}
+
 export function parseOnchainError(error: unknown): string {
   const msg = (error as { message?: string })?.message?.toLowerCase() ?? '';
   if (msg.includes('user rejected') || msg.includes('denied')) return 'Cancelled.';

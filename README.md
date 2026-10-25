@@ -9,7 +9,7 @@ Built in Arc Studio: https://studio.arc.io/app/50208fc9-aa83-4607-9d24-1ea4551f7
 ## Live on Arc mainnet
 
 - App: https://ajo-circle.vercel.app
-- Video walkthrough (1:48): https://youtu.be/zZDvz0zarfs
+- Video walkthrough (1:52): https://youtu.be/Tsl31jmHm94
 - The first circle, read-only, no wallet needed: https://ajo-circle.vercel.app/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet
 - AjoFactory: [0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9](https://explorer.arc.io/address/0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9)
 - First circle: [0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8](https://explorer.arc.io/address/0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8)

@@ -6,6 +6,12 @@ In an ajo (also called esusu or susu), a small group agrees an amount and a roun
 
 Built in Arc Studio: https://studio.arc.io/app/50208fc9-aa83-4607-9d24-1ea4551f7e59
 
+## Who saves this way
+
+In 2024, 28% of adults in Nigeria saved through a savings club or a person outside the family, the World Bank's measure for groups like ajo and esusu. That is about 38 million people. Across Sub-Saharan Africa the share was also 28%, about 215 million adults.
+
+Source: World Bank [Global Findex 2025](https://databank.worldbank.org/source/global-financial-inclusion), indicator `fin17c` ([Nigeria](https://api.worldbank.org/v2/country/NGA/indicator/fin17c?source=28&format=json), [Sub-Saharan Africa](https://api.worldbank.org/v2/country/SSA/indicator/fin17c?source=28&format=json)), applied to the World Bank's 2024 population aged 15 and over.
+
 ## Live on Arc mainnet
 
 - App: https://ajo-circle.vercel.app
@@ -13,6 +19,7 @@ Built in Arc Studio: https://studio.arc.io/app/50208fc9-aa83-4607-9d24-1ea4551f7
 - The first circle, read-only, no wallet needed: https://ajo-circle.vercel.app/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet
 - AjoFactory: [0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9](https://explorer.arc.io/address/0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9)
 - First circle: [0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8](https://explorer.arc.io/address/0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8)
+- Both contracts' source code is verified (exact match) on explorer.arc.io and [Sourcify](https://sourcify.dev/server/v2/contract/5042/0x3cbd2d161fba8fcce9a7f56184d9d33b490bf6d9)
 
 The first circle ran its full cycle on mainnet: 3 members, 3 rounds of 0.20 USDC, every pot collected and every deposit returned. 37 of 37 transactions succeeded, 2.4 USDC went into the circle and 2.4 USDC came back out, and the circle now holds 0. Every transaction, with explorer links, is in [EVIDENCE.md](EVIDENCE.md).
 
@@ -28,16 +35,17 @@ There is no admin and no upgrade path. Nobody, including the person who created 
 
 ## How it was built in Arc Studio
 
-The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over twelve turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
+The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over thirteen turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
 
 - Studio wrote `AjoCircle` and `AjoFactory`, 46 Foundry tests, deployed every version to Arc testnet, and built the React app.
-- Studio's security reviews moved payouts to collect-your-pot (a frozen recipient could otherwise stall a push payout and the whole circle with it), let a deposit cover more than one miss, check that the full amount arrives on every incoming transfer, and check that the USDC address is a contract.
+- Studio's security reviews moved payouts to collect-your-pot (a frozen recipient could otherwise stall a push payout and the whole circle with it), check that the full amount arrives on every incoming transfer, and check that the USDC address is a contract.
 - Reading each turn's changes found the rest, and Studio fixed them:
   - covered payments were being counted as owed
   - anyone could fill someone's circle list, so strangers' circles now sit in a separate Invitations section
   - reads followed the wallet's chain, and a share link took the wallet's network
   - approve raced the payment that needed it
   - a hand-written ABI listed one struct's fields out of order, so circle pages could not load; the app now takes its ABI straight from the compiled contracts
+  - Studio's preview tracing, which wraps the wallet provider and `fetch` to show calls in the Studio preview, was also shipping in the production build; it now loads only in the preview
 - The contracts on mainnet are Studio's build, byte for byte. `node scripts/verify-bytecode.mjs` checks it.
 
 ## Check it yourself
@@ -88,7 +96,7 @@ Drop `--testnet` for Arc mainnet.
 
 ## Security
 
-Not audited by a third party. It went through two Arc Studio security reviews and a line-by-line review of every change. USDC on Arc can be frozen by its issuer, as on any chain; payouts are collected rather than pushed, so one frozen member cannot stop the others getting their pots.
+Not audited by a third party. It went through two Arc Studio security reviews and a line-by-line review of every change. The app only ever asks a wallet to approve one round's amount to the circle being joined or paid, never an unlimited amount. USDC on Arc can be frozen by its issuer, as on any chain; payouts are collected rather than pushed, so one frozen member cannot stop the others getting their pots.
 
 ## License
 

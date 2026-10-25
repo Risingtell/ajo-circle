@@ -35,7 +35,7 @@ There is no admin and no upgrade path. Nobody, including the person who created 
 
 ## How it was built in Arc Studio
 
-The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over thirteen turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
+The contracts, the tests and the app were all written in Arc Studio, driven from the Arc Studio CLI over fifteen turns. Each prompt is in [studio-prompts/](studio-prompts), in order.
 
 - Studio wrote `AjoCircle` and `AjoFactory`, 46 Foundry tests, deployed every version to Arc testnet, and built the React app.
 - Studio's security reviews moved payouts to collect-your-pot (a frozen recipient could otherwise stall a push payout and the whole circle with it), check that the full amount arrives on every incoming transfer, and check that the USDC address is a contract.
@@ -46,6 +46,7 @@ The contracts, the tests and the app were all written in Arc Studio, driven from
   - approve raced the payment that needed it
   - a hand-written ABI listed one struct's fields out of order, so circle pages could not load; the app now takes its ABI straight from the compiled contracts
   - Studio's preview tracing, which wraps the wallet provider and `fetch` to show calls in the Studio preview, was also shipping in the production build; it now loads only in the preview
+- An outside review of the live app led to turns 14 and 15: each circle page now states its terms, links to its verified source and its full payment log on the explorer, shows whether each deposit was returned or used, and shows members as blocks on phones.
 - The contracts on mainnet are Studio's build, byte for byte. `node scripts/verify-bytecode.mjs` checks it.
 
 ## Check it yourself

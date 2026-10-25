@@ -1,0 +1,9 @@
+Small follow-up to turn 14. No contract, ABI or dependency changes. Keep the turn 13 change (tracing and console-capture only when import.meta.env.DEV) as it is.
+
+1. Members on phones. Below 640 px the R2 and R3 columns sit off to the right and nothing tells a member they can scroll, so they cannot see whether they paid. Below 640 px, replace the members table with one compact block per member: first line the member number, the address link (or "You") and the deposit status exactly as the table shows it now; second line one chip per round ("R1 Paid", "R2 Paid", and so on) using the same colours and states as the table, wrapping onto more lines when there are many rounds. From 640 px up, keep the table as it is now.
+
+2. Remove the sticky member column and its solid background from the table. Phones no longer need it, and on desktop the background shows as a grey band down the Member column.
+
+3. The floating "Built with Arc Studio" badge covers the last payout row when the page is scrolled to the bottom. Add enough bottom padding to the page that the badge never covers content, on phones and on desktop.
+
+Then run typecheck, lint and vite build, confirm dist/assets still has 0 occurrences of studio-trace, studio-console-log, patching fetch and EIP-1193 patch, and check the featured circle (/?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet) at 390 px and 1366 px with no wallet connected.

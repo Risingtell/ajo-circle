@@ -423,13 +423,79 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
         </div>
       )}
 
-      {/* Members table */}
+      {/* Members section */}
       <div className="rounded-3xl p-5 space-y-3" style={glass}>
         <p className="display text-sm font-bold" style={{ color: 'var(--ink)' }}>Members</p>
-        {/* On mobile: member column is sticky so round columns scroll behind it.
-            At lg+: no sticky, table fills the wider column naturally. */}
-        <div className="overflow-x-auto -mx-2">
-          <table className="w-full text-xs min-w-max lg:min-w-0 lg:table-fixed">
+
+        {/* ── Mobile cards (below sm) ──────────────────────────────────────────── */}
+        <div className="sm:hidden space-y-2">
+          {state.members.map((member, mi) => {
+            const isMe = isConnected && member.toLowerCase() === walletAddress?.toLowerCase();
+            const dep = state.memberDeposit[mi];
+            const depositLabel = (() => {
+              if (!state.finished) return formatUsdc(dep);
+              if (dep > 0n) return `${formatUsdc(dep)} to take back`;
+              const coveredRound = state.roundCovered.findIndex((rc) => rc[mi]);
+              if (coveredRound >= 0) return `Used for R${coveredRound + 1}`;
+              return 'Returned';
+            })();
+            const depositColor = (() => {
+              if (!state.finished || dep > 0n) return 'var(--ink-2)';
+              const coveredRound = state.roundCovered.findIndex((rc) => rc[mi]);
+              if (coveredRound >= 0) return '#b45309';
+              return 'var(--success)';
+            })();
+            return (
+              <div
+                key={mi}
+                className="rounded-2xl px-3 py-2.5 space-y-1.5"
+                style={{
+                  background: isMe ? 'rgba(133,177,237,0.09)' : 'rgba(255,255,255,0.46)',
+                  border: '1px solid rgba(255,255,255,0.56)',
+                }}
+              >
+                {/* Row 1: number, address, deposit */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-bold tabular-nums shrink-0" style={{ color: 'var(--subtle)' }}>{mi + 1}</span>
+                    <a
+                      href={explorerAddr(network.chainId, member)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mono text-xs hover:underline truncate"
+                      style={{ color: isMe ? 'var(--accent-hover)' : 'var(--ink-2)' }}
+                    >
+                      {isMe ? 'You' : formatAddress(member)}
+                    </a>
+                    {!state.memberJoined[mi] && (
+                      <span className="text-xs shrink-0" style={{ color: 'var(--subtle)' }}>not joined</span>
+                    )}
+                  </div>
+                  <span className="text-xs shrink-0" style={{ color: depositColor }}>{depositLabel}</span>
+                </div>
+                {/* Row 2: one chip per round */}
+                <div className="flex flex-wrap gap-1">
+                  {Array.from({ length: memberCount }).map((_, r) => {
+                    const st = paymentStatus(r, mi);
+                    return (
+                      <span
+                        key={r}
+                        className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                        style={{ color: st.label ? st.color : 'var(--subtle)', background: st.label ? st.bg : 'transparent' }}
+                      >
+                        R{r + 1}{st.label ? ` ${st.label}` : ''}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Desktop table (sm and above) ────────────────────────────────────── */}
+        <div className="hidden sm:block overflow-x-auto -mx-2">
+          <table className="w-full text-xs sm:min-w-max lg:min-w-0 lg:table-fixed">
             <colgroup>
               <col className="w-6" />
               <col style={{ minWidth: '7rem' }} className="lg:w-[22%]" />
@@ -442,12 +508,7 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
             <thead>
               <tr>
                 <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>#</th>
-                <th
-                  className="text-left pb-2 px-2 font-semibold sticky left-0 lg:static"
-                  style={{ color: 'var(--muted)', background: 'rgba(249,249,252,0.97)' }}
-                >
-                  Member
-                </th>
+                <th className="text-left pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Member</th>
                 <th className="text-center pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Joined</th>
                 <th className="text-right pb-2 px-2 font-semibold" style={{ color: 'var(--muted)' }}>Deposit</th>
                 {Array.from({ length: memberCount }).map((_, r) => (
@@ -460,18 +521,14 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
             <tbody>
               {state.members.map((member, mi) => {
                 const isMe = isConnected && member.toLowerCase() === walletAddress?.toLowerCase();
-                const rowBg = isMe ? 'rgba(133,177,237,0.07)' : 'transparent';
                 return (
                   <tr
                     key={mi}
                     className="border-t"
-                    style={{ borderColor: 'var(--border)', background: rowBg }}
+                    style={{ borderColor: 'var(--border)', background: isMe ? 'rgba(133,177,237,0.07)' : 'transparent' }}
                   >
                     <td className="py-2 px-2 font-semibold tabular-nums" style={{ color: 'var(--subtle)' }}>{mi + 1}</td>
-                    <td
-                      className="py-2 px-2 sticky left-0 lg:static"
-                      style={{ background: isMe ? 'rgba(133,177,237,0.07)' : 'rgba(249,249,252,0.97)' }}
-                    >
+                    <td className="py-2 px-2">
                       <a
                         href={explorerAddr(network.chainId, member)}
                         target="_blank"
@@ -490,9 +547,7 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
                     <td className="py-2 px-2 text-right" style={{ color: 'var(--ink-2)' }}>
                       {(() => {
                         const dep = state.memberDeposit[mi];
-                        if (!state.finished) {
-                          return <span className="tabular-nums">{formatUsdc(dep)}</span>;
-                        }
+                        if (!state.finished) return <span className="tabular-nums">{formatUsdc(dep)}</span>;
                         if (dep > 0n) {
                           return (
                             <span>
@@ -501,11 +556,8 @@ export function CirclePage({ circleAddress, network, onBack }: Props) {
                             </span>
                           );
                         }
-                        // deposit is 0 — find which round it was used for
                         const coveredRound = state.roundCovered.findIndex((rc) => rc[mi]);
-                        if (coveredRound >= 0) {
-                          return <span style={{ color: '#b45309' }}>Used for R{coveredRound + 1}</span>;
-                        }
+                        if (coveredRound >= 0) return <span style={{ color: '#b45309' }}>Used for R{coveredRound + 1}</span>;
                         return <span style={{ color: 'var(--success)' }}>Returned</span>;
                       })()}
                     </td>

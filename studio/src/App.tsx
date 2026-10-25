@@ -99,7 +99,8 @@ export default function App() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto w-full max-w-md lg:max-w-4xl px-4 pb-12 pt-6">
+      {/* pb-28 keeps content clear of the fixed "Built with Arc Studio" badge at the bottom-right */}
+      <div className="relative z-10 mx-auto w-full max-w-md lg:max-w-4xl px-4 pb-28 pt-6">
         {view.screen === 'home' && (
           <HomeView
             network={homeNetwork}

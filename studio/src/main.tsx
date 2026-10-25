@@ -10,8 +10,15 @@
  *  https://studio.arc.io
  */
 
-import './tracing'
-import './console-capture'
+// Load Studio instrumentation ONLY in the preview (DEV mode).
+// Vite statically evaluates import.meta.env.DEV and drops the entire
+// if-branch — and the two modules — from the production bundle.
+if (import.meta.env.DEV) {
+  // These run as side-effects; the dynamic import is intentionally not awaited
+  // so the app renders without delay while the patch runs in the same microtask.
+  void import('./tracing')
+  void import('./console-capture')
+}
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

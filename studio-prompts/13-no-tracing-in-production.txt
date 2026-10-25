@@ -1,0 +1,12 @@
+Urgent production fix. No contract changes and no visible UI changes.
+
+Wallets that use Blockaid now block the live app (ajo-circle.vercel.app) as a "Malicious DApp" before the user can even connect. Zerion showed: "Malicious DApp. Connection blocked. Potential risks: theft of recovery phrase or password, phishing attacks."
+
+The most likely cause is that the production bundle ships src/tracing.ts and src/console-capture.ts. Outside the Studio preview they behave like a wallet-hooking script: they redefine window.ethereum with Object.defineProperty, wrap every EIP-1193 request (including eth_sendTransaction), patch every provider announced through EIP-6963, wrap globalThis.fetch, and postMessage the captured data to window.parent, falling back to the "*" origin. In production the page is not inside a frame, so none of this is needed.
+
+Make both files run only in the Studio preview and never ship in a production build:
+1. src/main.tsx: load tracing and console-capture only when import.meta.env.DEV is true (the preview runs `vite`, production runs `vite build`), written so that Vite drops both modules completely from the production bundle. Keep tracing loading as early as it does now in the preview.
+2. src/config.ts: the registerChain calls must not pull tracing.ts into the production bundle either. Move them into the dev-only path, or make them no-ops in production builds.
+3. Do not change anything else: no contract, ABI, network, layout or copy changes.
+4. Run typecheck and lint, then run `vite build` and report, for the files in dist/assets, how many times each of these strings appears: studio-trace, studio-console-log, patching fetch, EIP-1193 patch, ancestorOrigins. All five should be 0.
+5. Confirm the preview still loads the featured circle /?circle=0xb3d2D00cc36e555b84CaFC0Cc7Aff07aC1dc19F8&network=mainnet with no wallet connected, and that tracing still works in the preview.
